@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model activity_logs {
+  id          BigInt   @id @default(autoincrement())
+  user_id     BigInt?
+  action      String   @db.VarChar(255)
+  module_name String?  @db.VarChar(100)
+  description String?  @db.Text
+  ip_address  String?  @db.VarChar(100)
+  created_at  DateTime @default(now()) @db.Timestamp(0)
+  users       users?   @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "fk_activity_logs_user")
+
+  @@index([user_id], map: "fk_activity_logs_user")
+}
+
+model attendance_logs {
+  id          BigInt                  @id @default(autoincrement())
+  employee_id BigInt
+  check_in    DateTime?               @db.DateTime(0)
+  check_out   DateTime?               @db.DateTime(0)
+  work_date   DateTime                @db.Date
+  status      attendance_logs_status? @default(PRESENT)
+  note        String?                 @db.Text
+  created_at  DateTime                @default(now()) @db.Timestamp(0)
+  employees   employees               @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_attendance_logs_employee")
+
+  @@index([employee_id], map: "fk_attendance_logs_employee")
+}
+
+model departments {
+  id          BigInt      @id @default(autoincrement())
+  name        String      @unique(map: "name") @db.VarChar(150)
+  description String?     @db.Text
+  created_at  DateTime    @default(now()) @db.Timestamp(0)
+  employees   employees[]
+}
+
+model education_histories {
+  id               BigInt    @id @default(autoincrement())
+  employee_id      BigInt
+  institution_name String    @db.VarChar(255)
+  degree           String?   @db.VarChar(150)
+  major            String?   @db.VarChar(150)
+  start_year       Int?      @db.Year
+  end_year         Int?      @db.Year
+  created_at       DateTime  @default(now()) @db.Timestamp(0)
+  employees        employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_education_employee")
+
+  @@index([employee_id], map: "fk_education_employee")
+}
+
+model employees {
+  id                                                   BigInt                       @id @default(autoincrement())
+  user_id                                              BigInt?                      @unique(map: "user_id")
+  employee_code                                        String                       @unique(map: "employee_code") @db.VarChar(50)
+  first_name                                           String                       @db.VarChar(100)
+  last_name                                            String                       @db.VarChar(100)
+  email                                                String?                      @unique(map: "email") @db.VarChar(150)
+  phone                                                String?                      @db.VarChar(30)
+  gender                                               employees_gender?
+  birth_date                                           DateTime?                    @db.Date
+  address                                              String?                      @db.Text
+  department_id                                        BigInt
+  position_id                                          BigInt
+  manager_id                                           BigInt?
+  hired_at                                             DateTime?                    @db.Date
+  employment_status                                    employees_employment_status? @default(ACTIVE)
+  profile_image                                        String?                      @db.VarChar(255)
+  created_at                                           DateTime                     @default(now()) @db.Timestamp(0)
+  updated_at                                           DateTime                     @default(now()) @db.Timestamp(0)
+  attendance_logs                                      attendance_logs[]
+  education_histories                                  education_histories[]
+  departments                                          departments                  @relation(fields: [department_id], references: [id], onUpdate: Restrict, map: "fk_employees_department")
+  employees                                            employees?                   @relation("employeesToemployees", fields: [manager_id], references: [id], onUpdate: Restrict, map: "fk_employees_manager")
+  other_employees                                      employees[]                  @relation("employeesToemployees")
+  positions                                            positions                    @relation(fields: [position_id], references: [id], onUpdate: Restrict, map: "fk_employees_position")
+  users                                                users?                       @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "fk_employees_user")
+  leave_requests_leave_requests_approved_byToemployees leave_requests[]             @relation("leave_requests_approved_byToemployees")
+  leave_requests_leave_requests_employee_idToemployees leave_requests[]             @relation("leave_requests_employee_idToemployees")
+  work_histories                                       work_histories[]
+
+  @@index([department_id], map: "fk_employees_department")
+  @@index([manager_id], map: "fk_employees_manager")
+  @@index([position_id], map: "fk_employees_position")
+}
+
+model files {
+  id            BigInt   @id @default(autoincrement())
+  uploaded_by   BigInt?
+  original_name String   @db.VarChar(255)
+  stored_name   String   @db.VarChar(255)
+  file_path     String   @db.VarChar(500)
+  mime_type     String?  @db.VarChar(100)
+  file_size     BigInt?
+  created_at    DateTime @default(now()) @db.Timestamp(0)
+  users         users?   @relation(fields: [uploaded_by], references: [id], onUpdate: Restrict, map: "fk_files_uploaded_by")
+
+  @@index([uploaded_by], map: "fk_files_uploaded_by")
+}
+
+model leave_requests {
+  id                                              BigInt                 @id @default(autoincrement())
+  employee_id                                     BigInt
+  leave_type_id                                   BigInt
+  start_date                                      DateTime               @db.Date
+  end_date                                        DateTime               @db.Date
+  total_days                                      Int
+  reason                                          String?                @db.Text
+  attachment                                      String?                @db.VarChar(255)
+  status                                          leave_requests_status? @default(PENDING)
+  approved_by                                     BigInt?
+  approved_at                                     DateTime?              @db.Timestamp(0)
+  created_at                                      DateTime               @default(now()) @db.Timestamp(0)
+  employees_leave_requests_approved_byToemployees employees?             @relation("leave_requests_approved_byToemployees", fields: [approved_by], references: [id], onUpdate: Restrict, map: "fk_leave_requests_approved_by")
+  employees_leave_requests_employee_idToemployees employees              @relation("leave_requests_employee_idToemployees", fields: [employee_id], references: [id], onUpdate: Restrict, map: "fk_leave_requests_employee")
+  leave_types                                     leave_types            @relation(fields: [leave_type_id], references: [id], onUpdate: Restrict, map: "fk_leave_requests_leave_type")
+
+  @@index([approved_by], map: "fk_leave_requests_approved_by")
+  @@index([employee_id], map: "fk_leave_requests_employee")
+  @@index([leave_type_id], map: "fk_leave_requests_leave_type")
+}
+
+model leave_types {
+  id                BigInt           @id @default(autoincrement())
+  name              String           @unique(map: "name") @db.VarChar(100)
+  max_days_per_year Int?             @default(0)
+  created_at        DateTime         @default(now()) @db.Timestamp(0)
+  leave_requests    leave_requests[]
+}
+
+model notifications {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  title      String   @db.VarChar(255)
+  message    String   @db.Text
+  is_read    Boolean? @default(false)
+  created_at DateTime @default(now()) @db.Timestamp(0)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_notifications_user")
+
+  @@index([user_id], map: "fk_notifications_user")
+}
+
+model permissions {
+  id               BigInt             @id @default(autoincrement())
+  name             String             @unique(map: "name") @db.VarChar(150)
+  description      String?            @db.Text
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  role_permissions role_permissions[]
+}
+
+model positions {
+  id          BigInt      @id @default(autoincrement())
+  name        String      @unique(map: "name") @db.VarChar(150)
+  description String?     @db.Text
+  created_at  DateTime    @default(now()) @db.Timestamp(0)
+  employees   employees[]
+}
+
+model role_permissions {
+  id            BigInt      @id @default(autoincrement())
+  role_id       BigInt
+  permission_id BigInt
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_role_permissions_permission")
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_role_permissions_role")
+
+  @@unique([role_id, permission_id], map: "role_id")
+  @@index([permission_id], map: "fk_role_permissions_permission")
+}
+
+model roles {
+  id               BigInt             @id @default(autoincrement())
+  name             String             @unique(map: "name") @db.VarChar(100)
+  description      String?            @db.Text
+  created_at       DateTime           @default(now()) @db.Timestamp(0)
+  role_permissions role_permissions[]
+  user_roles       user_roles[]
+}
+
+model user_roles {
+  id      BigInt @id @default(autoincrement())
+  user_id BigInt
+  role_id BigInt
+  roles   roles  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_user_roles_role")
+  users   users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_user_roles_user")
+
+  @@unique([user_id, role_id], map: "user_id")
+  @@index([role_id], map: "fk_user_roles_role")
+}
+
+model users {
+  id            BigInt          @id @default(autoincrement())
+  username      String          @unique(map: "username") @db.VarChar(100)
+  email         String          @unique(map: "email") @db.VarChar(150)
+  password      String          @db.VarChar(255)
+  status        users_status?   @default(ACTIVE)
+  last_login_at DateTime?       @db.Timestamp(0)
+  created_at    DateTime        @default(now()) @db.Timestamp(0)
+  updated_at    DateTime        @default(now()) @db.Timestamp(0)
+  activity_logs activity_logs[]
+  employees     employees?
+  files         files[]
+  notifications notifications[]
+  user_roles    user_roles[]
+}
+
+model work_histories {
+  id            BigInt    @id @default(autoincrement())
+  employee_id   BigInt
+  company_name  String    @db.VarChar(255)
+  position_name String?   @db.VarChar(150)
+  start_date    DateTime? @db.Date
+  end_date      DateTime? @db.Date
+  description   String?   @db.Text
+  created_at    DateTime  @default(now()) @db.Timestamp(0)
+  employees     employees @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_work_histories_employee")
+
+  @@index([employee_id], map: "fk_work_histories_employee")
+}
+
+enum users_status {
+  ACTIVE
+  INACTIVE
+}
+
+enum attendance_logs_status {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+enum employees_gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum leave_requests_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum employees_employment_status {
+  ACTIVE
+  RESIGNED
+  SUSPENDED
+}

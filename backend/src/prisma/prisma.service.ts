@@ -8,9 +8,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const dbUrl = new URL(process.env.DATABASE_URL!);
     
-    // Parse DATABASE_URL for MariaDB/MySQL adapter
+    // Resolve localhost to IPv4 loopback (127.0.0.1) to prevent Node.js IPv6 resolution timeout issues in local Windows MySQL setups
+    const host = dbUrl.hostname === 'localhost' ? '127.0.0.1' : dbUrl.hostname;
+
     const adapter = new PrismaMariaDb({
-      host: dbUrl.hostname,
+      host: host,
       port: parseInt(dbUrl.port || '3306'),
       user: dbUrl.username,
       password: decodeURIComponent(dbUrl.password),
